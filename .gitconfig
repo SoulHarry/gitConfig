@@ -1,0 +1,142 @@
+[alias]
+# Aliases to change functionality of defaults
+    diff = diff --find-copies --find-renames
+# Simple Aliases
+    ch = checkout
+    co = checkout
+    st = status -s -b
+    b = branch
+    cp = cherry-pick
+    rv = revert --no-edit
+    d = !git diff
+    df = !git diff
+    dif = !git diff
+    dc = !git diffc
+    bl = blame -w
+    witchhunt = blame -w
+# Logging
+    lg = log --graph --date=relative --abbrev=4 --color --decorate --pretty=format:\"%Cred%h%C(yellow)%d %C(bold blue)%an %Creset%s %Cgreen(%ad)%Creset\" --date-order
+    lga = !git lg --all
+    lg-status = !git lg --name-status
+    last = log -1 --pretty=%s
+# Diffing
+    log-diff = log --patch
+    diffw = !git diff --word-diff
+    diffww = !git diff --word-diff-regex=.
+    diffc = !git diff --cached
+    diffcw = !git diffw --cached
+    diffcww = !git diffww --cached
+    dlast = !git diff HEAD~1..HEAD
+    dlastw = !git diffw HEAD~1..HEAD
+    dlastww = !git diffww HEAD~1..HEAD
+    diff-prior = "!f() { git lg $1^..$1 && git diff $1^.."$@" ;}; f"
+# Staging
+    a = add --all
+    swap = "!f() { git commit --allow-empty -m 'temp' && git add --all && git stash && git reset HEAD^ && git stash pop --index ;}; f"
+# Stashing
+    stash-unstaged = "!f() { git commit -m temp && git stash -u && git reset HEAD^ --soft ;}; f"
+# Resetting
+    reset-unstaged-hard = "!git commit --allow-empty -m 'temp' && git add -A && git reset --hard && git reset --soft HEAD~1"
+    reset-staged-hard = "!git swap && git reset-unstaged-hard && git reset"
+    delete-ignored-files = clean -X -d
+# Committing
+    c = commit -m
+    ca = commit -F .git/COMMIT_EDITMSG
+    ac = commit -a -m
+    tack = commit --amend --no-edit
+    scope = commit --allow-empty -m
+    rescope = commit --only --amend --allow-empty -m
+    done = "!git a && git tack"
+# Merging
+    merge-and-delete = "!f() { git merge --no-ff --no-edit $1 && git branch -d $1 ;}; f"
+    merge-to = "!f() { branch=$(git symbolic-ref --short HEAD) && git checkout $1 && git merge --no-ff --no-edit $branch ;}; f"
+    merge-to-and-delete-branch = "!f() { branch=$(git get-current-branch-name) && git checkout $1 && git merge --no-ff --no-edit $branch && git branch -d $branch ;}; f"
+    rebase-merge-push-to = "!f() { git pull-other $1 && git rebase $1 && git merge-to-and-delete-branch $1 && git push ;}; f"
+    cherry-pick-merge = "!f() { branch=$(git get-current-branch-name) && git checkout $1 && git checkout -b temp-rebase && git rebase --preserve-merges --keep-empty --onto $branch $1^ && git steal-branch $branch && git branch -d temp-rebase ;}; f"
+# Navigating
+    get-children = "!f() { git rev-list --all ^HEAD^ --children | grep ^$(git rev-parse HEAD) | cut -d ' ' -f2- ;}; f"
+    forward = "!f() { children=$(git get-children) && git checkout $(git get-branch-name ${children##* }) ;}; f"
+    back = checkout HEAD^
+    checkout-without-changes = "!f() { git symbolic-ref HEAD refs/heads/$1 ;}; f"
+# Branch info
+    get-current-branch-name = symbolic-ref --short HEAD
+    get-branch-name = "!f() { branches=$(git name-rev $1) && echo ${branches##* } ;}; f"
+    get-current-hash = rev-parse HEAD
+    branch-exists = "!f() { [[ $(git branch -a --list $1 | cut -c 3-) ]] || exit 1 ;}; f"
+    local-and-remote-are-identical = "!f() { git branch-exists $1 && git branch-exists \"origin/$1\" && [[ $(git rev-parse $1) != $(git rev-parse \"origin/$1\") ]] && exit 1 ;}; f"
+    list-local-branches = for-each-ref --format="%(refname:strip=2)" refs/heads/
+    list-synced-branches = "!f() { for i in $(git list-local-branches); do git local-and-remote-are-identical $i && echo $i ; done ;}; f"
+    list-unsynced-branches = "!f() { for i in $(git list-local-branches); do git local-and-remote-are-identical $i || echo $i; done ;}; f"
+# Branch modifications
+    steal-branch = "!f() { git branch -D $1 && git co -b $1 && git retrack-branch ;}; f"
+    delete-merged-branches = !git branch --merged | grep -v \\* | xargs git branch -d
+    delete-synced-branches = "!f() { git list-synced-branches | sed -n \"/$(git get-current-branch-name)/! p\" | xargs git b -D ;}; f"
+# Pushing and pulling
+    retrack-branch = "!f() { branch=$(git get-current-branch-name) && git branch --set-upstream-to=origin/$branch $branch ;}; f"
+    delete-remote-branch = "!f() { git push origin --delete $1 ;}; f"
+    delete-local-and-remote-branch = "!f() { git branch -D $1 && git push origin --delete $1 ;}; f"
+    delete-gone-remotes = !git fetch --prune
+    pull-other = "!f() { git fetch origin $1:$1 ;}; f"
+# Sync and cleanup
+    sync = "!git delete-gone-remotes; git delete-merged-branches; git delete-synced-branches; echo ==== UNSYNCED ====; git list-unsynced-branches; git stash list; git status -s; echo ========"
+# Tracking
+    stop-tracking-changes = update-index --assume-unchanged
+    resume-tracking-changes = update-index --no-assume-unchanged
+    list-ignored-changes = !git ls-files -v | grep '^h'
+# Submodules
+    submodule-pull = "!f() { git pull \"$@\" && git submodule sync --recursive && git submodule update --init --recursive ;}; f"
+    spull = !git submodule-pull
+# History editing
+    purge-commit = "!f() { git rebase --preserve-merges --onto $1^ $1 ;}; f"
+    purge-file = !f() { git filter-branch --force --index-filter "git rm --cached --ignore-unmatch $1" --prune-empty --tag-name-filter cat -- --all ;}; f
+# Serving
+    serve = !git daemon --base-path=. --export-all --reuseaddr --informative-errors --verbose
+    hub = !git daemon --base-path=. --export-all --enable=receive-pack --reuseaddr --informative-errors --verbose
+# Convenience functions
+    git = "!f() { git \"$@\" ;}; f"
+    bash = "!f() { eval \"$@\" ;}; f"
+    alias = "!f() { while IFS= read -r line; do [[ \"$line\" == [* && \"$line\" != \"[alias]\" ]] && break || echo \"$line\" | sed 's/ = /    \\t= /'; done < $HOME/.gitconfig ;}; f"
+    alias-add = "!f() { git config --global alias.$1 \"$2\" ;}; f"
+    edit = "!f() { $(git config core.editor) -- $@ ;}; f"
+    reedit = "!f() { git edit $(git diff --name-only $1) ;}; f"
+    cat-from = "!f() { git show $1:\"$GIT_PREFIX$2\" ;}; f"
+    find = "!git ls-files | grep -i"
+    pwd = !echo "$GIT_PREFIX"
+# Complex functionality for a particular purpose
+    push-distribution-to-origin-branch = subtree push -P dist origin
+# Aliases kept for reference
+    blame-learn = blame --date=short --abbrev=3 -w
+    add-file-pointless-same-as-add-A = "!f() { git ls-files -m | grep -i \"$1\" | xargs git add --all ;}; f"
+    scaffold = "!f() { echo hi ;}; f"
+# New aliases
+    test = "!f() { git lga --left-right \"$@\" | while read -r line; do [[ \"$line\" =~ [\\<\\>] ]] && echo \"$line\" || echo \"$line\" | sed -r \"s/\\x1B\\[([0-9]{1,2}(;[0-9]{1,2})?)?[mGK]//g\"; done ;}; f"
+	superlog = log --graph --abbrev-commit --decorate --date=relative --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C(reset)' --all
+[user]
+	name = Nombre_usuario
+	email = username@mail.com
+[credential "https://github.com"]
+    username = username
+[core]
+    autocrlf = input
+    safecrlf = false
+    ignorecase = false
+    whitespace = cr-at-eol
+    mergeoptions = no-edit
+    editor = mcedit
+[rerere]
+    enabled = 1
+[push]
+    default = current
+    recurseSubmodules = on-demand
+[mergetool]
+    keepBackup = false
+[merge]
+    ff = false
+[pull]
+    ff = only
+[grep]
+    lineNumber = true
+[status]
+    submoduleSummary = true
+[diff]
+    submodule = log
